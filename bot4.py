@@ -1,10 +1,17 @@
+# Cod complet – bot cu automatic invite tracking + claim button
+
+---
+
+## Fișierul `bot4.py` (copiază integral)
+
+```python
 import discord
 from discord.ext import commands
 from discord.ui import Button, View
 import json
 import os
 
-# ─── JSON storage for invites ──────────────────────────────
+# ─── JSON storage ──────────────────────────────────────────────
 DATA_FILE = 'data.json'
 
 def load_data():
@@ -25,7 +32,47 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='/', intents=intents)
 
-# ─── Command /send_cheat (sends the embed with button) ────
+# ─── Cache pentru invitații ──────────────────────────────────
+invites_cache = {}
+
+@bot.event
+async def on_ready():
+    print(f'🤖 Logged in as {bot.user}')
+    # Salvează invitațiile curente la pornire
+    for guild in bot.guilds:
+        invites_cache[guild.id] = await guild.invites()
+    await bot.tree.sync()
+    print('✅ Commands synced')
+
+# ─── Tracking automat al invitațiilor ──────────────────────
+@bot.event
+async def on_member_join(member):
+    # Obține invitațiile actualizate după ce membru a intrat
+    new_invites = await member.guild.invites()
+    
+    # Compară cu cache-ul vechi
+    old_invites = invites_cache.get(member.guild.id, [])
+    
+    # Caută invitația care are un count mai mare
+    for new_inv in new_invites:
+        for old_inv in old_invites:
+            if new_inv.code == old_inv.code and new_inv.uses > old_inv.uses:
+                # Această invitație a fost folosită
+                inviter_id = str(new_inv.inviter.id)
+                data = load_data()
+                
+                if inviter_id not in data:
+                    data[inviter_id] = {'invites': 0, 'claimed': False}
+                data[inviter_id]['invites'] += 1
+                save_data(data)
+                
+                print(f'📈 {new_inv.inviter.name} now has {data[inviter_id]["invites"]} invites')
+                break
+    
+    # Actualizează cache-ul
+    invites_cache[member.guild.id] = new_invites
+
+# ─── Comanda /send_cheat ──────────────────────────────────────
 @bot.tree.command(name='send_cheat', description='Sends the Free Cheat embed with claim button')
 async def send_cheat(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
@@ -55,7 +102,7 @@ async def send_cheat(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed, view=view)
 
-# ─── Button callback ────────────────────────────────────────
+# ─── Callback pentru buton ────────────────────────────────────
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
     if interaction.type != discord.InteractionType.component:
@@ -88,7 +135,6 @@ async def on_interaction(interaction: discord.Interaction):
         await interaction.user.send(
             "🎮 **FREE BRAWL STARS CHEAT** 🎮\n\n"
             "📥 **Download:** https://gofile.io/d/gSxhyqyq"
-           
         )
     except:
         await interaction.followup.send('⚠️ Cannot send DM. Please enable DMs from server members.', ephemeral=True)
@@ -100,7 +146,7 @@ async def on_interaction(interaction: discord.Interaction):
 
     await interaction.followup.send('✅ **Cheat sent to your DMs!** Invites reset to 0.', ephemeral=True)
 
-# ─── Admin command: manually add invites ───────────────────
+# ─── Admin command: manual add invites ──────────────────────
 @bot.tree.command(name='add_invites', description='[Admin] Add invites to a user')
 async def add_invites(interaction: discord.Interaction, member: discord.Member, count: int):
     if not interaction.user.guild_permissions.administrator:
@@ -116,13 +162,23 @@ async def add_invites(interaction: discord.Interaction, member: discord.Member, 
 
     await interaction.response.send_message(f'✅ {member.mention} now has {data[uid]["invites"]} invites.', ephemeral=True)
 
-# ─── Start the bot ──────────────────────────────────────────
-@bot.event
-async def on_ready():
-    print(f'🤖 Logged in as {bot.user}')
-    await bot.tree.sync()
-    print('✅ Commands synced')
+# ─── Admin command: reset a user ─────────────────────────────
+@bot.tree.command(name='reset_user', description='[Admin] Reset a user (invites and claim status)')
+async def reset_user(interaction: discord.Interaction, member: discord.Member):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message('❌ Only admins.', ephemeral=True)
+        return
 
+    data = load_data()
+    uid = str(member.id)
+    if uid in data:
+        data[uid] = {'invites': 0, 'claimed': False}
+        save_data(data)
+        await interaction.response.send_message(f'✅ {member.mention} has been reset.', ephemeral=True)
+    else:
+        await interaction.response.send_message(f'❌ {member.mention} not found in database.', ephemeral=True)
+
+# ─── Start bot ────────────────────────────────────────────────
 if __name__ == '__main__':
     token = os.getenv('DISCORD_TOKEN')
     if not token:
