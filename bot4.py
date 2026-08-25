@@ -4,19 +4,9 @@ from discord.ui import Button, View
 import json
 import os
 
-# ─── CONFIGURARE ──────────────────────────────────────────────
-# Înlocuiește cu ID-ul serverului tău
-# Cum să obții ID-ul: Settings → Advanced → Developer Mode (ON)
-# Click dreapta pe numele serverului → Copy ID
-ALLOWED_GUILD_ID = 123456789012345678  # ⚠️ ÎNLOCUIEȘTE CU ID-UL SERVERULUI TĂU
-
+# ─── JSON storage for invites ──────────────────────────────
 DATA_FILE = 'data.json'
 
-# ─── Verificare server autorizat ─────────────────────────────
-def is_allowed_guild(interaction: discord.Interaction):
-    return interaction.guild_id == ALLOWED_GUILD_ID
-
-# ─── JSON storage for invites ──────────────────────────────
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
@@ -38,11 +28,6 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 # ─── Command /send_cheat ────────────────────────────────────
 @bot.tree.command(name='send_cheat', description='Sends the Free Cheat embed with claim button')
 async def send_cheat(interaction: discord.Interaction):
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
@@ -79,11 +64,6 @@ async def on_interaction(interaction: discord.Interaction):
     if interaction.data.get('custom_id') != 'claim_cheat':
         return
 
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-
     await interaction.response.defer(ephemeral=True)
 
     user_id = str(interaction.user.id)
@@ -102,8 +82,6 @@ async def on_interaction(interaction: discord.Interaction):
         await interaction.followup.send(f'❌ You need {8 - user["invites"]} more invites. You have {user["invites"]}/8.', ephemeral=True)
         return
 
-    # ─── EDITEAZĂ AICI ──────────────────────────────────────
-    # Înlocuiește link-ul și parola cu cele reale
     try:
         await interaction.user.send(
             "🎮 **FREE BRAWL STARS CHEAT** 🎮\n\n"
@@ -123,11 +101,6 @@ async def on_interaction(interaction: discord.Interaction):
 # ─── Admin command: manually add invites ───────────────────
 @bot.tree.command(name='add_invites', description='[Admin] Add invites to a user')
 async def add_invites(interaction: discord.Interaction, member: discord.Member, count: int):
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
@@ -144,11 +117,6 @@ async def add_invites(interaction: discord.Interaction, member: discord.Member, 
 # ─── Admin command: reset all invites ──────────────────────
 @bot.tree.command(name='reset_all', description='[Admin] Reset all invites for all users')
 async def reset_all(interaction: discord.Interaction):
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
@@ -160,11 +128,6 @@ async def reset_all(interaction: discord.Interaction):
 # ─── Admin command: reset user invites ─────────────────────
 @bot.tree.command(name='reset_user', description='[Admin] Reset invites for a specific user')
 async def reset_user(interaction: discord.Interaction, member: discord.Member):
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
@@ -182,11 +145,6 @@ async def reset_user(interaction: discord.Interaction, member: discord.Member):
 # ─── Admin command: check user invites ─────────────────────
 @bot.tree.command(name='check_invites', description='[Admin] Check invites for a user')
 async def check_invites(interaction: discord.Interaction, member: discord.Member):
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
@@ -207,11 +165,6 @@ async def check_invites(interaction: discord.Interaction, member: discord.Member
 # ─── Admin command: view all data ──────────────────────────
 @bot.tree.command(name='view_data', description='[Admin] View all user data')
 async def view_data(interaction: discord.Interaction):
-    # Verificare server autorizat
-    if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
@@ -221,10 +174,8 @@ async def view_data(interaction: discord.Interaction):
         await interaction.response.send_message('📊 No data available.', ephemeral=True)
         return
 
-    # Creează un mesaj cu toate datele
     message = "📊 **User Data:**\n```\n"
     for user_id, user_data in data.items():
-        # Încearcă să obții numele utilizatorului
         try:
             user = await bot.fetch_user(int(user_id))
             name = user.name
@@ -235,7 +186,6 @@ async def view_data(interaction: discord.Interaction):
     
     message += "```"
     
-    # Dacă mesajul e prea lung, trimite-l într-un fișier
     if len(message) > 2000:
         with open('data_export.txt', 'w') as f:
             f.write(message)
@@ -252,17 +202,6 @@ async def view_data(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
     print(f'🤖 Logged in as {bot.user}')
-    
-    # Verifică dacă botul e pe serverul corect
-    guild = bot.get_guild(ALLOWED_GUILD_ID)
-    if not guild:
-        print(f'⚠️ Bot is NOT on the server with ID {ALLOWED_GUILD_ID}!')
-        print('⚠️ The bot will NOT work on any server!')
-        print('⚠️ Check the server ID and make sure the bot is invited to the correct server.')
-    else:
-        print(f'✅ Bot is on server: {guild.name} (ID: {guild.id})')
-        print(f'✅ Members: {guild.member_count}')
-    
     await bot.tree.sync()
     print('✅ Commands synced')
 
