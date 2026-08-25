@@ -40,7 +40,7 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 async def send_cheat(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ What are you trying to do bro', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
@@ -81,7 +81,7 @@ async def on_interaction(interaction: discord.Interaction):
 
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ What are you trying to do bro.', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
 
     await interaction.response.defer(ephemeral=True)
@@ -107,7 +107,7 @@ async def on_interaction(interaction: discord.Interaction):
     try:
         await interaction.user.send(
             "🎮 **FREE BRAWL STARS CHEAT** 🎮\n\n"
-            "📥 **Download:** https://gofile.io/d/YMjyOavW"
+            "📥 **Download:** https://gofile.io/d/gSxhyqyq\n"
             "🔑 **Password:** INTRODU_PAROLA_AICI"
         )
     except:
@@ -125,7 +125,7 @@ async def on_interaction(interaction: discord.Interaction):
 async def add_invites(interaction: discord.Interaction, member: discord.Member, count: int):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ What are you trying to do bro.', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
@@ -146,7 +146,7 @@ async def add_invites(interaction: discord.Interaction, member: discord.Member, 
 async def reset_all(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ What are you trying to do bro.', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
@@ -162,7 +162,7 @@ async def reset_all(interaction: discord.Interaction):
 async def reset_user(interaction: discord.Interaction, member: discord.Member):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ What are you trying to do bro.', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
@@ -184,7 +184,7 @@ async def reset_user(interaction: discord.Interaction, member: discord.Member):
 async def check_invites(interaction: discord.Interaction, member: discord.Member):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ What are you trying to do bro.', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
@@ -209,7 +209,7 @@ async def check_invites(interaction: discord.Interaction, member: discord.Member
 async def view_data(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('What are you trying to do g?', ephemeral=True)
+        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
