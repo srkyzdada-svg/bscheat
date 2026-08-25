@@ -40,7 +40,7 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 async def send_cheat(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ What are you trying to do bro', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
