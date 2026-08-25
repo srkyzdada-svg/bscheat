@@ -40,11 +40,11 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 async def send_cheat(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only admins can use this command.', ephemeral=True)
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
 
     embed = discord.Embed(
@@ -81,7 +81,7 @@ async def on_interaction(interaction: discord.Interaction):
 
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
 
     await interaction.response.defer(ephemeral=True)
@@ -125,11 +125,11 @@ async def on_interaction(interaction: discord.Interaction):
 async def add_invites(interaction: discord.Interaction, member: discord.Member, count: int):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only admins.', ephemeral=True)
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
 
     data = load_data()
@@ -146,11 +146,11 @@ async def add_invites(interaction: discord.Interaction, member: discord.Member, 
 async def reset_all(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only admins.', ephemeral=True)
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
 
     data = {}
@@ -162,11 +162,11 @@ async def reset_all(interaction: discord.Interaction):
 async def reset_user(interaction: discord.Interaction, member: discord.Member):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only admins.', ephemeral=True)
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
 
     data = load_data()
@@ -184,11 +184,11 @@ async def reset_user(interaction: discord.Interaction, member: discord.Member):
 async def check_invites(interaction: discord.Interaction, member: discord.Member):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only admins.', ephemeral=True)
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
 
     data = load_data()
@@ -209,11 +209,11 @@ async def check_invites(interaction: discord.Interaction, member: discord.Member
 async def view_data(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only admins.', ephemeral=True)
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
         return
 
     data = load_data()
@@ -256,11 +256,11 @@ async def on_ready():
     # Verifică dacă botul e pe serverul corect
     guild = bot.get_guild(ALLOWED_GUILD_ID)
     if not guild:
-        print(f'⚠️ Botul NU este pe serverul cu ID-ul {ALLOWED_GUILD_ID}!')
-        print('⚠️ Botul NU va funcționa pe niciun server!')
-        print('⚠️ Verifică ID-ul serverului și asigură-te că botul este invitat pe serverul corect.')
+        print(f'⚠️ Bot is NOT on the server with ID {ALLOWED_GUILD_ID}!')
+        print('⚠️ The bot will NOT work on any server!')
+        print('⚠️ Check the server ID and make sure the bot is invited to the correct server.')
     else:
-        print(f'✅ Botul este pe serverul: {guild.name} (ID: {guild.id})')
+        print(f'✅ Bot is on server: {guild.name} (ID: {guild.id})')
         print(f'✅ Members: {guild.member_count}')
     
     await bot.tree.sync()
