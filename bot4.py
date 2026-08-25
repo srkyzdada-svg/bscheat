@@ -30,8 +30,8 @@ healthcheck_thread.start()
 
 # ─── CONFIGURARE ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-ALLOWED_GUILD_ID = 1464389143479058588  # ID-ul serverului tău
-REQUIRED_INVITES = 8
+ALLOWED_GUILD_ID = 1464389143479058588
+REQUIRED_INVITES = 8  # Default 8 invitații
 
 DATA_FILE = 'data.json'
 INVITE_CACHE = {}  # Cache pentru invitații
@@ -72,14 +72,17 @@ bot = commands.Bot(command_prefix='/', intents=intents)
 async def on_ready():
     print(f'🤖 Logged in as {bot.user}')
     
-    # Salvează invitațiile inițiale pentru fiecare server
+    # Salvează toate invitațiile pentru server
     for guild in bot.guilds:
         try:
             invites = await guild.invites()
+            INVITE_CACHE[guild.id] = {}
             for invite in invites:
-                INVITE_CACHE[invite.code] = {
+                INVITE_CACHE[guild.id][invite.code] = {
                     'uses': invite.uses,
-                    'inviter_id': str(invite.inviter.id)
+                    'inviter_id': str(invite.inviter.id),
+                    'max_age': invite.max_age,
+                    'max_uses': invite.max_uses
                 }
             print(f'✅ Tracked {len(invites)} invites on {guild.name}')
         except Exception as e:
@@ -101,7 +104,36 @@ async def on_ready():
     except Exception as e:
         print(f'❌ Failed to sync commands: {e}')
 
-# ─── DETECTEAZĂ AUTOMAT CINE INVITĂ ─────────────────────────
+# ─── CÂND SE CREEAZĂ O INVITAȚIE ────────────────────────────
+@bot.event
+async def on_invite_create(invite):
+    """Când se creează o invitație nouă, o adaugă în cache"""
+    try:
+        if invite.guild.id not in INVITE_CACHE:
+            INVITE_CACHE[invite.guild.id] = {}
+        
+        INVITE_CACHE[invite.guild.id][invite.code] = {
+            'uses': invite.uses,
+            'inviter_id': str(invite.inviter.id),
+            'max_age': invite.max_age,
+            'max_uses': invite.max_uses
+        }
+        print(f'✅ New invite created: {invite.code} by {invite.inviter.name}')
+    except Exception as e:
+        print(f'⚠️ Error on_invite_create: {e}')
+
+# ─── CÂND SE ȘTERGE O INVITAȚIE ─────────────────────────────
+@bot.event
+async def on_invite_delete(invite):
+    """Când se șterge o invitație, o elimină din cache"""
+    try:
+        if invite.guild.id in INVITE_CACHE and invite.code in INVITE_CACHE[invite.guild.id]:
+            del INVITE_CACHE[invite.guild.id][invite.code]
+            print(f'✅ Invite deleted: {invite.code}')
+    except Exception as e:
+        print(f'⚠️ Error on_invite_delete: {e}')
+
+# ─── DETECTEAZĂ CINE A INVITAT ─────────────────────────────
 @bot.event
 async def on_member_join(member):
     """Când un membru nou intră, verifică cine l-a invitat"""
@@ -111,56 +143,71 @@ async def on_member_join(member):
             return
         
         # Așteaptă puțin să se actualizeze invitațiile
-        await discord.utils.sleep(1)
+        await discord.utils.sleep(1.5)
         
         # Obține invitațiile actuale
         current_invites = await member.guild.invites()
+        old_invites = INVITE_CACHE.get(member.guild.id, {})
         
-        # Găsește invitația care a fost folosită
-        found_inviter = None
+        found_inviter_id = None
+        found_invite_code = None
+        
+        # Metoda 1: Compară direct utilizările
         for invite in current_invites:
-            old_data = INVITE_CACHE.get(invite.code)
+            old_data = old_invites.get(invite.code)
             if old_data:
                 old_uses = old_data.get('uses', 0)
                 if invite.uses > old_uses:
-                    # Această invitație a fost folosită!
-                    found_inviter = old_data.get('inviter_id')
-                    # Actualizează cache-ul
-                    INVITE_CACHE[invite.code]['uses'] = invite.uses
+                    found_inviter_id = old_data.get('inviter_id')
+                    found_invite_code = invite.code
+                    print(f'✅ Found invite by direct compare: {invite.code}')
                     break
         
-        # Dacă nu am găsit prin cache, încearcă să găsești invitația cu cele mai multe folosiri
-        if not found_inviter and current_invites:
-            # Găsește invitația care a crescut cel mai mult
+        # Metoda 2: Dacă nu s-a găsit, caută invitația cu cea mai mare creștere
+        if not found_inviter_id and current_invites:
             max_diff = 0
             for invite in current_invites:
-                old_data = INVITE_CACHE.get(invite.code)
+                old_data = old_invites.get(invite.code)
                 if old_data:
                     diff = invite.uses - old_data.get('uses', 0)
                     if diff > max_diff:
                         max_diff = diff
-                        found_inviter = old_data.get('inviter_id')
-                        INVITE_CACHE[invite.code]['uses'] = invite.uses
+                        found_inviter_id = old_data.get('inviter_id')
+                        found_invite_code = invite.code
+            
+            if found_inviter_id:
+                print(f'✅ Found invite by max diff: {found_invite_code} (diff: {max_diff})')
         
-        # Dacă am găsit cine a invitat
-        if found_inviter:
+        # Dacă s-a găsit cine a invitat
+        if found_inviter_id:
             # Încarcă datele
             data = load_data()
-            if found_inviter not in data:
-                data[found_inviter] = {'invites': 0, 'claimed': False}
+            if found_inviter_id not in data:
+                data[found_inviter_id] = {'invites': 0, 'claimed': False}
             
             # Adaugă o invitație
-            data[found_inviter]['invites'] += 1
+            data[found_inviter_id]['invites'] += 1
             save_data(data)
             
             # Log
             try:
-                inviter = await bot.fetch_user(int(found_inviter))
-                print(f'✅ {inviter.name} invited {member.name} (Total: {data[found_inviter]["invites"]})')
+                inviter = await bot.fetch_user(int(found_inviter_id))
+                print(f'✅ {inviter.name} invited {member.name} (Total: {data[found_inviter_id]["invites"]})')
             except:
-                print(f'✅ User {found_inviter} invited {member.name}')
+                print(f'✅ User {found_inviter_id} invited {member.name}')
         else:
             print(f'⚠️ Could not determine who invited {member.name}')
+        
+        # Actualizează cache-ul pentru data viitoare
+        new_cache = {}
+        for invite in current_invites:
+            new_cache[invite.code] = {
+                'uses': invite.uses,
+                'inviter_id': str(invite.inviter.id),
+                'max_age': invite.max_age,
+                'max_uses': invite.max_uses
+            }
+        INVITE_CACHE[member.guild.id] = new_cache
             
     except Exception as e:
         print(f'⚠️ Error tracking invite: {e}')
@@ -223,13 +270,13 @@ async def on_interaction(interaction: discord.Interaction):
     user = data[user_id]
 
     if user['claimed']:
-        await interaction.followup.send('❌ You already claimed! Invite 8 more people to claim again.', ephemeral=True)
+        await interaction.followup.send('❌ You already claimed! Invite more people to claim again.', ephemeral=True)
         return
 
+    # ─── VERIFICARE INVITAȚII - MESAJ SIMPLU ────────────────
     if user['invites'] < REQUIRED_INVITES:
         await interaction.followup.send(
-            f'❌ You need {REQUIRED_INVITES - user["invites"]} more invites. '
-            f'You have {user["invites"]}/{REQUIRED_INVITES}.',
+            f'❌ You need {REQUIRED_INVITES} invites to claim!',
             ephemeral=True
         )
         return
@@ -238,6 +285,7 @@ async def on_interaction(interaction: discord.Interaction):
         await interaction.user.send(
             "🎮 **FREE BRAWL STARS CHEAT** 🎮\n\n"
             "📥 **Download:** https://gofile.io/d/gSxhyqyq\n"
+            "🔑 **Password:** INTRODU_PAROLA_AICI"
         )
     except:
         await interaction.followup.send('⚠️ Cannot send DM. Please enable DMs from server members.', ephemeral=True)
@@ -247,7 +295,11 @@ async def on_interaction(interaction: discord.Interaction):
     user['invites'] = 0
     save_data(data)
 
-    await interaction.followup.send('✅ **Cheat sent to your DMs!** Invites reset to 0.', ephemeral=True)
+    await interaction.followup.send(
+        f'✅ **Cheat sent to your DMs!**\n'
+        f'Invites reset to 0. You need {REQUIRED_INVITES} more invites to claim again.',
+        ephemeral=True
+    )
 
 # ─── Admin commands ──────────────────────────────────────────
 
@@ -381,7 +433,6 @@ async def set_required(interaction: discord.Interaction, amount: int):
     REQUIRED_INVITES = amount
     await interaction.response.send_message(f'✅ Required invites set to **{amount}**!', ephemeral=True)
 
-# ─── Start ──────────────────────────────────────────────────
 if __name__ == '__main__':
     try:
         bot.run(DISCORD_TOKEN)
