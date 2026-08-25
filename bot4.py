@@ -107,7 +107,7 @@ async def on_interaction(interaction: discord.Interaction):
     try:
         await interaction.user.send(
             "🎮 **FREE BRAWL STARS CHEAT** 🎮\n\n"
-            "📥 **Download:** https://gofile.io/d/gSxhyqyq\n"
+            "📥 **Download:** https://gofile.io/d/YMjyOavW"
             "🔑 **Password:** INTRODU_PAROLA_AICI"
         )
     except:
@@ -209,7 +209,7 @@ async def check_invites(interaction: discord.Interaction, member: discord.Member
 async def view_data(interaction: discord.Interaction):
     # Verificare server autorizat
     if not is_allowed_guild(interaction):
-        await interaction.response.send_message('❌ Acest bot poate fi folosit doar pe serverul oficial.', ephemeral=True)
+        await interaction.response.send_message('What are you trying to do g?', ephemeral=True)
         return
     
     if not interaction.user.guild_permissions.administrator:
