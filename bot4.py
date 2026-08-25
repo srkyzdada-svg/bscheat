@@ -7,7 +7,7 @@ import sys
 import threading
 import socket
 
-# ─── SERVER HEALTHCHECK (pentru Railway) ────────────────────
+# ─── SERVER HEALTHCHECK ──────────────────────────────────────
 def run_healthcheck_server():
     try:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -31,7 +31,7 @@ healthcheck_thread.start()
 # ─── CONFIGURARE ──────────────────────────────────────────────
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 ALLOWED_GUILD_ID = 1464389143479058588  # ID-ul serverului tău
-REQUIRED_INVITES = 8  # 8 invitații necesare
+REQUIRED_INVITES = 8
 
 DATA_FILE = 'data.json'
 INVITE_CACHE = {}  # Cache pentru invitații
@@ -41,7 +41,7 @@ if not DISCORD_TOKEN:
     print('❌ DISCORD_TOKEN is not set!')
     sys.exit(1)
 
-# ─── JSON storage for invites ──────────────────────────────
+# ─── JSON storage ──────────────────────────────────────────
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -67,22 +67,25 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='/', intents=intents)
 
-# ─── Urmărește invitațiile ──────────────────────────────────
+# ─── Urmărește invitațiile la pornire ───────────────────────
 @bot.event
 async def on_ready():
     print(f'🤖 Logged in as {bot.user}')
     
-    # Salvează invitațiile inițiale
+    # Salvează invitațiile inițiale pentru fiecare server
     for guild in bot.guilds:
         try:
             invites = await guild.invites()
             for invite in invites:
-                INVITE_CACHE[invite.code] = invite.uses
-        except:
-            pass
+                INVITE_CACHE[invite.code] = {
+                    'uses': invite.uses,
+                    'inviter_id': str(invite.inviter.id)
+                }
+            print(f'✅ Tracked {len(invites)} invites on {guild.name}')
+        except Exception as e:
+            print(f'⚠️ Could not fetch invites: {e}')
     
     print(f'✅ Required invites: {REQUIRED_INVITES}')
-    print(f'✅ Server restriction: {"Enabled" if ALLOWED_GUILD_ID != 0 else "Disabled"}')
     
     if ALLOWED_GUILD_ID != 0:
         guild = bot.get_guild(ALLOWED_GUILD_ID)
@@ -98,39 +101,67 @@ async def on_ready():
     except Exception as e:
         print(f'❌ Failed to sync commands: {e}')
 
-# ─── Detectează când cineva intră pe server ────────────────
+# ─── DETECTEAZĂ AUTOMAT CINE INVITĂ ─────────────────────────
 @bot.event
 async def on_member_join(member):
     """Când un membru nou intră, verifică cine l-a invitat"""
     try:
-        # Verifică dacă botul e pe serverul corect
+        # Verifică dacă e serverul corect
         if member.guild.id != ALLOWED_GUILD_ID:
             return
         
+        # Așteaptă puțin să se actualizeze invitațiile
+        await discord.utils.sleep(1)
+        
         # Obține invitațiile actuale
-        invites = await member.guild.invites()
+        current_invites = await member.guild.invites()
         
         # Găsește invitația care a fost folosită
-        for invite in invites:
-            old_uses = INVITE_CACHE.get(invite.code, 0)
-            if invite.uses > old_uses:
-                # Acest invitație a fost folosită
-                inviter_id = str(invite.inviter.id)
-                
-                # Actualizează cache-ul
-                INVITE_CACHE[invite.code] = invite.uses
-                
-                # Încarcă datele
-                data = load_data()
-                if inviter_id not in data:
-                    data[inviter_id] = {'invites': 0, 'claimed': False}
-                
-                # Adaugă o invitație
-                data[inviter_id]['invites'] += 1
-                save_data(data)
-                
-                print(f'✅ {invite.inviter.name} invited {member.name} (Total: {data[inviter_id]["invites"]})')
-                break
+        found_inviter = None
+        for invite in current_invites:
+            old_data = INVITE_CACHE.get(invite.code)
+            if old_data:
+                old_uses = old_data.get('uses', 0)
+                if invite.uses > old_uses:
+                    # Această invitație a fost folosită!
+                    found_inviter = old_data.get('inviter_id')
+                    # Actualizează cache-ul
+                    INVITE_CACHE[invite.code]['uses'] = invite.uses
+                    break
+        
+        # Dacă nu am găsit prin cache, încearcă să găsești invitația cu cele mai multe folosiri
+        if not found_inviter and current_invites:
+            # Găsește invitația care a crescut cel mai mult
+            max_diff = 0
+            for invite in current_invites:
+                old_data = INVITE_CACHE.get(invite.code)
+                if old_data:
+                    diff = invite.uses - old_data.get('uses', 0)
+                    if diff > max_diff:
+                        max_diff = diff
+                        found_inviter = old_data.get('inviter_id')
+                        INVITE_CACHE[invite.code]['uses'] = invite.uses
+        
+        # Dacă am găsit cine a invitat
+        if found_inviter:
+            # Încarcă datele
+            data = load_data()
+            if found_inviter not in data:
+                data[found_inviter] = {'invites': 0, 'claimed': False}
+            
+            # Adaugă o invitație
+            data[found_inviter]['invites'] += 1
+            save_data(data)
+            
+            # Log
+            try:
+                inviter = await bot.fetch_user(int(found_inviter))
+                print(f'✅ {inviter.name} invited {member.name} (Total: {data[found_inviter]["invites"]})')
+            except:
+                print(f'✅ User {found_inviter} invited {member.name}')
+        else:
+            print(f'⚠️ Could not determine who invited {member.name}')
+            
     except Exception as e:
         print(f'⚠️ Error tracking invite: {e}')
 
@@ -207,7 +238,6 @@ async def on_interaction(interaction: discord.Interaction):
         await interaction.user.send(
             "🎮 **FREE BRAWL STARS CHEAT** 🎮\n\n"
             "📥 **Download:** https://gofile.io/d/gSxhyqyq\n"
-            "🔑 **Password:** INTRODU_PAROLA_AICI"
         )
     except:
         await interaction.followup.send('⚠️ Cannot send DM. Please enable DMs from server members.', ephemeral=True)
@@ -219,7 +249,8 @@ async def on_interaction(interaction: discord.Interaction):
 
     await interaction.followup.send('✅ **Cheat sent to your DMs!** Invites reset to 0.', ephemeral=True)
 
-# ─── Admin command: manually add invites ───────────────────
+# ─── Admin commands ──────────────────────────────────────────
+
 @bot.tree.command(name='add_invites', description='[Admin] Add invites to a user')
 async def add_invites(interaction: discord.Interaction, member: discord.Member, count: int):
     if interaction.guild_id != ALLOWED_GUILD_ID:
@@ -242,22 +273,6 @@ async def add_invites(interaction: discord.Interaction, member: discord.Member, 
         ephemeral=True
     )
 
-# ─── Admin command: reset all invites ──────────────────────
-@bot.tree.command(name='reset_all', description='[Admin] Reset all invites for all users')
-async def reset_all(interaction: discord.Interaction):
-    if interaction.guild_id != ALLOWED_GUILD_ID:
-        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
-        return
-    
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
-        return
-
-    data = {}
-    save_data(data)
-    await interaction.response.send_message('✅ All user data has been reset.', ephemeral=True)
-
-# ─── Admin command: reset user invites ─────────────────────
 @bot.tree.command(name='reset_user', description='[Admin] Reset invites for a specific user')
 async def reset_user(interaction: discord.Interaction, member: discord.Member):
     if interaction.guild_id != ALLOWED_GUILD_ID:
@@ -278,7 +293,20 @@ async def reset_user(interaction: discord.Interaction, member: discord.Member):
     else:
         await interaction.response.send_message(f'❌ {member.mention} has no data.', ephemeral=True)
 
-# ─── Admin command: check user invites ─────────────────────
+@bot.tree.command(name='reset_all', description='[Admin] Reset all invites for all users')
+async def reset_all(interaction: discord.Interaction):
+    if interaction.guild_id != ALLOWED_GUILD_ID:
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
+        return
+    
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
+        return
+
+    data = {}
+    save_data(data)
+    await interaction.response.send_message('✅ All user data has been reset.', ephemeral=True)
+
 @bot.tree.command(name='check_invites', description='[Admin] Check invites for a user')
 async def check_invites(interaction: discord.Interaction, member: discord.Member):
     if interaction.guild_id != ALLOWED_GUILD_ID:
@@ -302,7 +330,6 @@ async def check_invites(interaction: discord.Interaction, member: discord.Member
     else:
         await interaction.response.send_message(f'❌ {member.mention} has no data.', ephemeral=True)
 
-# ─── Admin command: view all data ──────────────────────────
 @bot.tree.command(name='view_data', description='[Admin] View all user data')
 async def view_data(interaction: discord.Interaction):
     if interaction.guild_id != ALLOWED_GUILD_ID:
@@ -340,7 +367,21 @@ async def view_data(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(message, ephemeral=True)
 
-# ─── Start the bot ──────────────────────────────────────────
+@bot.tree.command(name='set_required', description='[Admin] Change the required invites amount')
+async def set_required(interaction: discord.Interaction, amount: int):
+    if interaction.guild_id != ALLOWED_GUILD_ID:
+        await interaction.response.send_message('❌ This bot can only be used on the official server.', ephemeral=True)
+        return
+    
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message('❌ Only administrators can use this command.', ephemeral=True)
+        return
+
+    global REQUIRED_INVITES
+    REQUIRED_INVITES = amount
+    await interaction.response.send_message(f'✅ Required invites set to **{amount}**!', ephemeral=True)
+
+# ─── Start ──────────────────────────────────────────────────
 if __name__ == '__main__':
     try:
         bot.run(DISCORD_TOKEN)
